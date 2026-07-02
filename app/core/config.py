@@ -34,6 +34,15 @@ class Settings(BaseSettings):
     # Кошелёк
     wallet_currency: str = "RUB"
 
+    # Платёжный провайдер: "mock" (встроенная имитация ЦБ)
+    # или "yookassa" (реальное API ЮKassa, подходит их тестовый магазин)
+    payment_provider: str = "mock"
+
+    # ЮKassa (нужны только при payment_provider=yookassa)
+    yookassa_shop_id: str = ""
+    yookassa_secret_key: str = ""
+    yookassa_return_url: str = "http://localhost:8000/"
+
     # QR-код
     qr_ttl_minutes: int = 15
 

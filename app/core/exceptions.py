@@ -53,3 +53,9 @@ class GoneError(AppError):
     status_code = 410
     code = "gone"
     default_message = "Ресурс больше не доступен"
+
+
+class BadGatewayError(AppError):
+    status_code = 502
+    code = "bad_gateway"
+    default_message = "Платёжный провайдер недоступен, попробуйте позже"

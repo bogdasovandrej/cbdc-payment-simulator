@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user
 from app.db.session import get_db
-from app.mock_cbdc.service import mock_cbdc
 from app.models.user import User
 from app.schemas.error import ErrorResponse
 from app.schemas.payment import (
@@ -41,13 +40,9 @@ def create_payment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> PaymentResponse:
-    payment = PaymentService(db).create_payment(user=current_user, amount=body.amount)
-
-    # «Отправляем» платёж во внешнюю систему цифрового рубля:
-    # регистрация синхронная, обработка — в фоне.
-    mock_cbdc.submit_payment(payment_id=payment.id, amount=payment.amount)
-    background_tasks.add_task(mock_cbdc.process_payment, payment.id)
-
+    payment = PaymentService(db).create_payment(
+        user=current_user, amount=body.amount, background_tasks=background_tasks
+    )
     return PaymentResponse.model_validate(payment)
 
 

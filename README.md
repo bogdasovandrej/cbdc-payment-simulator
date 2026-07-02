@@ -215,6 +215,31 @@ curl http://localhost:8000/api/user/balance -H "Authorization: Bearer <ACCESS_TO
 curl http://localhost:8000/api/user/transactions -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+## Платёжные провайдеры: mock и ЮKassa
+
+«Внешний банк» подключается через единый интерфейс (`app/providers/`),
+провайдер выбирается настройкой `PAYMENT_PROVIDER`:
+
+* **`mock`** (по умолчанию) — встроенная имитация платформы цифрового рубля:
+  случайные задержки, вероятность отказа, фоновая смена статусов.
+* **`yookassa`** — реальное API [ЮKassa](https://yookassa.ru/developers/api).
+  Подходит их тестовый магазин: API и страница оплаты боевые, деньги
+  не списываются (тестовая карта `5555 5555 5555 4477`). При этом QR-код
+  платежа содержит настоящую ссылку на страницу оплаты.
+
+Для включения ЮKassa задайте переменные окружения:
+
+```
+PAYMENT_PROVIDER=yookassa
+YOOKASSA_SHOP_ID=<shopId из личного кабинета>
+YOOKASSA_SECRET_KEY=<секретный ключ, для теста начинается с test_>
+YOOKASSA_RETURN_URL=<куда вернуть покупателя после оплаты>
+```
+
+Маппинг статусов: `pending → PROCESSING`, `succeeded → PAID`,
+`canceled → FAILED`. Статус подтягивается при запросе платежа
+(pull-модель, без вебхуков — чтобы работало и на localhost).
+
 ## Деплой (бесплатно, Render.com)
 
 В репозитории есть [`render.yaml`](render.yaml) — blueprint для Render:
