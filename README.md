@@ -212,6 +212,19 @@ curl http://localhost:8000/api/user/balance -H "Authorization: Bearer <ACCESS_TO
 curl http://localhost:8000/api/user/transactions -H "Authorization: Bearer <ACCESS_TOKEN>"
 ```
 
+## Деплой (бесплатно, Render.com)
+
+В репозитории есть [`render.yaml`](render.yaml) — blueprint для Render:
+
+1. Зарегистрируйтесь на [render.com](https://render.com) (вход через GitHub).
+2. **New +** → **Blueprint** → выберите этот репозиторий → **Apply**.
+3. Через несколько минут сервис будет доступен по адресу вида
+   `https://cbdc-payment-simulator.onrender.com`.
+
+Особенности бесплатного тарифа: сервис «засыпает» после 15 минут без
+трафика (первый запрос будит его за ~минуту), демо-база — SQLite,
+данные сбрасываются при перезапуске.
+
 ## Настройки (переменные окружения)
 
 | Переменная | По умолчанию | Описание |

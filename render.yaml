@@ -1,0 +1,27 @@
+# Blueprint для деплоя на Render.com (бесплатный тариф).
+#
+# Как задеплоить:
+# 1. Зарегистрируйтесь на https://render.com (вход через GitHub).
+# 2. New + -> Blueprint -> выберите этот репозиторий -> Apply.
+#
+# Демо работает на SQLite: диск на бесплатном тарифе не сохраняется
+# между перезапусками, поэтому данные периодически сбрасываются —
+# для демонстрации это нормально.
+
+services:
+  - type: web
+    name: cbdc-payment-simulator
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////tmp/cbdc_demo.db
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: MOCK_MIN_DELAY_SECONDS
+        value: "1.0"
+      - key: MOCK_MAX_DELAY_SECONDS
+        value: "3.0"
+      - key: MOCK_FAIL_PROBABILITY
+        value: "0.2"
