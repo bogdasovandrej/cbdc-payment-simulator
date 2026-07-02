@@ -4,9 +4,10 @@
 # 1. Зарегистрируйтесь на https://render.com (вход через GitHub).
 # 2. New + -> Blueprint -> выберите этот репозиторий -> Apply.
 #
-# Демо работает на SQLite: диск на бесплатном тарифе не сохраняется
-# между перезапусками, поэтому данные периодически сбрасываются —
-# для демонстрации это нормально.
+# База данных: постоянный PostgreSQL на Neon.tech (бесплатный тариф).
+# Значение DATABASE_URL задаётся вручную в панели Render
+# (Environment -> DATABASE_URL), поэтому здесь sync: false —
+# секреты не хранятся в репозитории.
 
 services:
   - type: web
@@ -16,7 +17,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        value: sqlite:////tmp/cbdc_demo.db
+        sync: false
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: MOCK_MIN_DELAY_SECONDS
