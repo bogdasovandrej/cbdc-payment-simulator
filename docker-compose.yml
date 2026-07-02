@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: cbdc-db
+    environment:
+      POSTGRES_USER: cbdc
+      POSTGRES_PASSWORD: cbdc
+      POSTGRES_DB: cbdc
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cbdc -d cbdc"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: cbdc-app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg2://cbdc:cbdc@db:5432/cbdc
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-change-me}
+      MOCK_MIN_DELAY_SECONDS: "1.0"
+      MOCK_MAX_DELAY_SECONDS: "3.0"
+      MOCK_FAIL_PROBABILITY: "0.2"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

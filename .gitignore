@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Окружение
+.env
+
+# Тесты и локальная БД
+.pytest_cache/
+tests/test_app.db
+local_dev.db
+*.db
+
+# IDE
+.idea/
+.vscode/
+
+# ОС
+.DS_Store
+Thumbs.db

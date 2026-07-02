@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Цифровой рубль — симулятор оплаты по QR</title>
+<style>
+  :root {
+    --bg: #0f1222;
+    --card: #191d33;
+    --card-2: #21264a;
+    --text: #eef0ff;
+    --muted: #9aa0c3;
+    --accent: #6c5ce7;
+    --accent-2: #8f7ff7;
+    --green: #2ecc71;
+    --red: #ff6b6b;
+    --amber: #f5b041;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #2b2f5e 0%, var(--bg) 55%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+  .logo { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; }
+  .logo .coin {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800; color: white;
+    box-shadow: 0 4px 18px rgba(108, 92, 231, .45);
+  }
+  .logo small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+  .user-box { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: var(--radius);
+    padding: 22px;
+    margin-bottom: 20px;
+  }
+  h2 { font-size: 16px; margin-bottom: 14px; font-weight: 600; }
+  .hint { color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  input {
+    width: 100%; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.12); background: var(--card-2);
+    color: var(--text); font-size: 15px; outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 6px; }
+
+  button {
+    border: none; border-radius: 10px; padding: 12px 18px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: white; transition: transform .06s ease, opacity .15s;
+  }
+  button:hover { opacity: .92; }
+  button:active { transform: scale(.98); }
+  button:disabled { opacity: .5; cursor: default; }
+  button.ghost {
+    background: transparent; border: 1px solid rgba(255,255,255,.18); color: var(--text);
+    font-weight: 500; padding: 8px 14px; font-size: 13px;
+  }
+  button.small { padding: 7px 12px; font-size: 13px; }
+
+  /* Экран входа */
+  .auth-wrap { max-width: 420px; margin: 8vh auto 0; }
+  .tabs { display: flex; gap: 6px; background: var(--card-2); padding: 5px; border-radius: 10px; margin-bottom: 18px; }
+  .tabs button {
+    flex: 1; background: transparent; color: var(--muted); font-weight: 600; padding: 10px;
+  }
+  .tabs button.active { background: var(--accent); color: white; }
+  .auth-wrap button.submit { width: 100%; margin-top: 18px; }
+
+  /* Дашборд */
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+  .balance-value { font-size: 38px; font-weight: 800; margin: 6px 0 2px; }
+  .balance-value span { font-size: 22px; color: var(--muted); font-weight: 600; }
+
+  .pay-row { display: flex; gap: 10px; margin-top: 4px; }
+  .pay-row input { flex: 1; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  tr:last-child td { border-bottom: none; }
+
+  .badge { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge.CREATED { background: rgba(154,160,195,.15); color: var(--muted); }
+  .badge.PROCESSING { background: rgba(245,176,65,.15); color: var(--amber); animation: pulse 1.2s infinite; }
+  .badge.PAID { background: rgba(46,204,113,.15); color: var(--green); }
+  .badge.FAILED { background: rgba(255,107,107,.15); color: var(--red); }
+  @keyframes pulse { 50% { opacity: .55; } }
+
+  .tx-amount.DEPOSIT { color: var(--green); font-weight: 600; }
+  .tx-amount.WITHDRAWAL { color: var(--red); font-weight: 600; }
+
+  .empty { color: var(--muted); font-size: 14px; padding: 14px 4px; }
+
+  /* Модалка QR */
+  .modal-back {
+    position: fixed; inset: 0; background: rgba(5,7,18,.7);
+    display: flex; align-items: center; justify-content: center; z-index: 50;
+  }
+  .modal {
+    background: var(--card); border-radius: var(--radius); padding: 26px;
+    text-align: center; max-width: 360px; width: 92%;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .modal img { width: 240px; height: 240px; border-radius: 10px; background: white; padding: 8px; }
+  .modal .payload {
+    font-family: Consolas, monospace; font-size: 11px; color: var(--muted);
+    word-break: break-all; margin: 14px 0; line-height: 1.5;
+  }
+
+  /* Тосты */
+  #toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
+  .toast {
+    background: var(--card-2); border-left: 4px solid var(--accent);
+    padding: 12px 16px; border-radius: 10px; font-size: 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.4); max-width: 340px;
+    animation: slide-in .2s ease;
+  }
+  .toast.error { border-left-color: var(--red); }
+  .toast.success { border-left-color: var(--green); }
+  @keyframes slide-in { from { transform: translateX(30px); opacity: 0; } }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <div class="coin">₽</div>
+      <div>Цифровой рубль<small>симулятор оплаты по QR-коду</small></div>
+    </div>
+    <div class="user-box hidden" id="user-box">
+      <span id="user-email"></span>
+      <button class="ghost" onclick="logout()">Выйти</button>
+    </div>
+  </header>
+
+  <!-- Экран входа / регистрации -->
+  <div id="auth-screen" class="auth-wrap">
+    <div class="card">
+      <div class="tabs">
+        <button id="tab-login" class="active" onclick="switchTab('login')">Вход</button>
+        <button id="tab-register" onclick="switchTab('register')">Регистрация</button>
+      </div>
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="user@example.com" autocomplete="username">
+      <label>Пароль</label>
+      <input id="auth-password" type="password" placeholder="минимум 8 символов" autocomplete="current-password">
+      <button class="submit" id="auth-submit" onclick="submitAuth()">Войти</button>
+      <p class="hint" style="margin-top:14px">
+        Это учебный симулятор: деньги ненастоящие, «банк» — имитация.
+        При регистрации автоматически создаётся кошелёк цифрового рубля.
+      </p>
+    </div>
+  </div>
+
+  <!-- Дашборд -->
+  <div id="dashboard" class="hidden">
+    <div class="grid">
+      <div class="card">
+        <h2>Баланс кошелька</h2>
+        <div class="balance-value" id="balance">0.00 <span>₽</span></div>
+        <p class="hint">Пополняется при успешной оплате счёта (статус «Оплачен»)</p>
+      </div>
+      <div class="card">
+        <h2>Выставить счёт на оплату</h2>
+        <div class="pay-row">
+          <input id="pay-amount" type="number" min="0.01" step="0.01" placeholder="Сумма, ₽">
+          <button onclick="createPayment()" id="pay-btn">Создать</button>
+        </div>
+        <p class="hint" style="margin-top:10px">
+          Появится QR-код, а «внешняя система» обработает платёж за пару секунд —
+          иногда с отказом, как в жизни.
+        </p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Платежи</h2>
+      <div id="payments-empty" class="empty">Пока нет ни одного платежа — создайте первый!</div>
+      <table id="payments-table" class="hidden">
+        <thead><tr><th>№</th><th>Сумма</th><th>Статус</th><th>Создан</th><th></th></tr></thead>
+        <tbody id="payments-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>История операций</h2>
+      <div id="tx-empty" class="empty">Операций пока нет</div>
+      <table id="tx-table" class="hidden">
+        <thead><tr><th>№</th><th>Тип</th><th>Сумма</th><th>Платёж</th><th>Дата</th></tr></thead>
+        <tbody id="tx-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка QR -->
+<div id="qr-modal" class="modal-back hidden" onclick="closeQr(event)">
+  <div class="modal">
+    <h2 style="margin-bottom:16px">QR-код для оплаты</h2>
+    <img id="qr-img" alt="QR-код">
+    <div class="payload" id="qr-payload"></div>
+    <button class="ghost" onclick="closeQr()">Закрыть</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+let authMode = 'login';
+let pollTimer = null;
+
+// ---------- Вспомогательное ----------
+
+function toast(message, type = 'error') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = message;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function getToken() { return localStorage.getItem('access_token'); }
+
+async function api(path, options = {}) {
+  options.headers = Object.assign({}, options.headers);
+  if (options.body) options.headers['Content-Type'] = 'application/json';
+  const token = getToken();
+  if (token) options.headers['Authorization'] = 'Bearer ' + token;
+
+  const response = await fetch(path, options);
+  if (response.status === 401 && !path.startsWith('/api/auth/')) {
+    logout();
+    throw new Error('Сессия истекла — войдите заново');
+  }
+  if (!response.ok) {
+    let message = 'Ошибка ' + response.status;
+    try {
+      const body = await response.json();
+      if (body.error) message = body.error.message;
+    } catch (_) {}
+    throw new Error(message);
+  }
+  return response;
+}
+
+function fmtMoney(value) {
+  return Number(value).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+const STATUS_RU = { CREATED: 'Создан', PROCESSING: 'Обрабатывается', PAID: 'Оплачен', FAILED: 'Отклонён' };
+
+// ---------- Авторизация ----------
+
+function switchTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+  document.getElementById('auth-submit').textContent = mode === 'login' ? 'Войти' : 'Зарегистрироваться';
+}
+
+async function submitAuth() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) { toast('Заполните email и пароль'); return; }
+
+  const btn = document.getElementById('auth-submit');
+  btn.disabled = true;
+  try {
+    if (authMode === 'register') {
+      await api('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password }) });
+      toast('Аккаунт создан!', 'success');
+    }
+    const response = await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    const tokens = await response.json();
+    localStorage.setItem('access_token', tokens.access_token);
+    localStorage.setItem('refresh_token', tokens.refresh_token);
+    localStorage.setItem('email', email);
+    showDashboard();
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function logout() {
+  localStorage.clear();
+  clearInterval(pollTimer);
+  document.getElementById('dashboard').classList.add('hidden');
+  document.getElementById('user-box').classList.add('hidden');
+  document.getElementById('auth-screen').classList.remove('hidden');
+}
+
+// ---------- Дашборд ----------
+
+function showDashboard() {
+  document.getElementById('auth-screen').classList.add('hidden');
+  document.getElementById('dashboard').classList.remove('hidden');
+  document.getElementById('user-box').classList.remove('hidden');
+  document.getElementById('user-email').textContent = localStorage.getItem('email') || '';
+  refreshAll();
+  clearInterval(pollTimer);
+  pollTimer = setInterval(refreshAll, 2500);
+}
+
+async function refreshAll() {
+  try {
+    const [balanceR, paymentsR, txR] = await Promise.all([
+      api('/api/user/balance'),
+      api('/api/payments?limit=50'),
+      api('/api/user/transactions'),
+    ]);
+    renderBalance(await balanceR.json());
+    renderPayments((await paymentsR.json()).items);
+    renderTransactions(await txR.json());
+  } catch (_) { /* ошибки уже показаны или сессия истекла */ }
+}
+
+function renderBalance(data) {
+  document.getElementById('balance').innerHTML = fmtMoney(data.balance) + ' <span>₽</span>';
+}
+
+function renderPayments(items) {
+  const table = document.getElementById('payments-table');
+  const empty = document.getElementById('payments-empty');
+  table.classList.toggle('hidden', items.length === 0);
+  empty.classList.toggle('hidden', items.length !== 0);
+  document.getElementById('payments-body').innerHTML = items.map(p => `
+    <tr>
+      <td>#${p.id}</td>
+      <td><b>${fmtMoney(p.amount)} ₽</b></td>
+      <td><span class="badge ${p.status}">${STATUS_RU[p.status] || p.status}</span></td>
+      <td class="hint">${fmtDate(p.created_at)}</td>
+      <td style="text-align:right"><button class="small ghost" onclick="showQr(${p.id})">QR</button></td>
+    </tr>`).join('');
+}
+
+function renderTransactions(items) {
+  const table = document.getElementById('tx-table');
+  const empty = document.getElementById('tx-empty');
+  table.classList.toggle('hidden', items.length === 0);
+  empty.classList.toggle('hidden', items.length !== 0);
+  document.getElementById('tx-body').innerHTML = items.map(t => `
+    <tr>
+      <td>#${t.id}</td>
+      <td>${t.type === 'DEPOSIT' ? 'Пополнение' : 'Списание'}</td>
+      <td class="tx-amount ${t.type}">${t.type === 'DEPOSIT' ? '+' : '−'}${fmtMoney(t.amount)} ₽</td>
+      <td class="hint">${t.payment_id ? '#' + t.payment_id : '—'}</td>
+      <td class="hint">${fmtDate(t.created_at)}</td>
+    </tr>`).join('');
+}
+
+async function createPayment() {
+  const input = document.getElementById('pay-amount');
+  const amount = parseFloat(input.value);
+  if (!amount || amount <= 0) { toast('Введите сумму больше нуля'); return; }
+
+  const btn = document.getElementById('pay-btn');
+  btn.disabled = true;
+  try {
+    const response = await api('/api/payments', {
+      method: 'POST',
+      body: JSON.stringify({ amount: amount.toFixed(2) }),
+    });
+    const payment = await response.json();
+    input.value = '';
+    toast(`Счёт #${payment.id} создан — открываю QR`, 'success');
+    await refreshAll();
+    await showQr(payment.id);
+  } catch (error) {
+    toast(error.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------- QR ----------
+
+async function showQr(paymentId) {
+  try {
+    const dataR = await api(`/api/qr/${paymentId}`);
+    const data = await dataR.json();
+    const imgR = await api(`/api/qr/${paymentId}/image`);
+    const blob = await imgR.blob();
+
+    document.getElementById('qr-img').src = URL.createObjectURL(blob);
+    document.getElementById('qr-payload').textContent = data.payload;
+    document.getElementById('qr-modal').classList.remove('hidden');
+  } catch (error) {
+    toast(error.message);
+  }
+}
+
+function closeQr(event) {
+  if (event && event.target !== event.currentTarget) return;
+  document.getElementById('qr-modal').classList.add('hidden');
+}
+
+// ---------- Старт ----------
+
+document.getElementById('auth-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitAuth();
+});
+
+if (getToken()) showDashboard();
+</script>
+</body>
+</html>
